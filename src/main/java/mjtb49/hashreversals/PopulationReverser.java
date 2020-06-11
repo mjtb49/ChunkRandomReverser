@@ -33,34 +33,30 @@ public class PopulationReverser {
     public static ArrayList<Long> reverse(long populationSeed, int x, int z, MCVersion version) {
         ArrayList<Long> worldSeeds = new ArrayList<>();
 
-        if(x == 0 && z == 0) {
-            worldSeeds.add(populationSeed);
-            return worldSeeds;
-        }
-
         int c; //a is upper 16 bits, b middle 16 bits, c lower 16 bits of worldSeed.
         long e = populationSeed & Mth.MASK_32; //The algorithm proceeds by solving for worldSeed in 16 bit groups
         long f = populationSeed & Mth.MASK_16; //as such, we need the 16 bit groups of populationSeed for later eqns.
 
+        int freeBits = Long.numberOfTrailingZeros(x | z);
+        c = (int)(populationSeed & Mth.mask(freeBits));
+        c |= (x ^ z ^ populationSeed) & Mth.pow2(freeBits);
+        int increment = (int)Mth.pow2(freeBits + 1);
+
         long firstMultiplier = (M2 * x + M4 * z) & Mth.MASK_16;
         int multTrailingZeroes = Long.numberOfTrailingZeros(firstMultiplier);
 
+        //Exploden't Hensel!
         if(multTrailingZeroes >= 16) {
             Hensel.Hash popHash = value -> ChunkSeeds.getPopulationSeed(value, x, z, version);
 
-            for(long low = 0; low < 1L << 16; low++) {
-                Hensel.lift(low, 0, populationSeed, 32, 16, popHash, worldSeeds);
+            for(c &= Mth.MASK_16; c < 1L << 16; c += increment) {
+                Hensel.lift(c, Math.min(freeBits + 1, 32), populationSeed, 32, 16, popHash, worldSeeds);
             }
 
             return worldSeeds;
         }
 
         long firstMultInv = MOD_INVERSE[(int)(firstMultiplier >> multTrailingZeroes)];
-
-        int freeBits = Long.numberOfTrailingZeros(x | z);
-        c = (int)(populationSeed & Mth.mask(freeBits));
-        c |= (x ^ z ^ populationSeed) & Mth.pow2(freeBits);
-        int increment = (1 << (freeBits + 1));
 
         //We need to handle the four different cases of the effect the two |1s have on the seed
         HashSet<Integer> offsets = getOffsets(x, z, version);
@@ -69,7 +65,7 @@ public class PopulationReverser {
         for(; c < (1L << 16); c += increment) {
             //now that we've guessed 16 bits of worldSeed we can undo the mask
             long target = (c ^ f) & Mth.MASK_16;
-            long magic = x * X_TERM[c] + z * Z_TERM[c];
+            long magic = x * X_TERM[(int)c] + z * Z_TERM[(int)c];
 
             for(int offset: offsets) {
                 addWorldSeeds(target - ((magic + offset) & Mth.MASK_16), multTrailingZeroes,
