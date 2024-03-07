@@ -1,0 +1,1 @@
+This repo's main purpose is the ChunkRandomReverser class, which has methods for reversing the various hashes in Minecraft's ChunkRandom class. There is documentation in the form of javadocs on the interesting methods and some example usages in the test cases. It is just a simple java library - you are meant to import it in other java seedfinding code.
